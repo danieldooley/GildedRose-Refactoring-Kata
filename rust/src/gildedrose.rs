@@ -1,4 +1,5 @@
 use std::fmt::{self, Display};
+
 pub struct Item {
     pub name: String,
     pub sell_in: i32,
@@ -25,6 +26,14 @@ pub struct GildedRose {
     pub items: Vec<Item>,
 }
 
+const BACKSTAGE_PASSES: &'static str = "Backstage passes to a TAFKAL80ETC concert";
+const AGED_BRIE: &'static str = "Aged Brie";
+const SULFURAS: &'static str = "Sulfuras, Hand of Ragnaros";
+const CONJURED_PREFIX: &'static str = "Conjured";
+
+const MAX_QUALITY: i32 = 50;
+const MIN_QUALITY: i32 = 0;
+
 impl GildedRose {
     pub fn new(items: Vec<Item>) -> GildedRose {
         GildedRose { items }
@@ -32,62 +41,60 @@ impl GildedRose {
 
     pub fn update_quality(&mut self) {
         for item in &mut self.items {
-            if item.name != "Aged Brie" && item.name != "Backstage passes to a TAFKAL80ETC concert"
-            {
-                if item.quality > 0 {
-                    if item.name != "Sulfuras, Hand of Ragnaros" {
-                        item.quality = item.quality - 1;
-                    }
+            if item.name == SULFURAS {
+                continue;
+            }
+
+            if item.name == AGED_BRIE {
+                item.quality = clamp_quality(item.quality + 1);
+            } else if item.name == BACKSTAGE_PASSES {
+                item.quality = clamp_quality(item.quality + 1);
+
+                if item.sell_in < 11 {
+                    item.quality = clamp_quality(item.quality + 1);
                 }
+
+                if item.sell_in < 6 {
+                    item.quality = clamp_quality(item.quality + 1);
+                }
+            } else if item.name.starts_with(CONJURED_PREFIX) {
+                item.quality = clamp_quality(item.quality - 2);
             } else {
-                if item.quality < 50 {
-                    item.quality = item.quality + 1;
-
-                    if item.name == "Backstage passes to a TAFKAL80ETC concert" {
-                        if item.sell_in < 11 {
-                            if item.quality < 50 {
-                                item.quality = item.quality + 1;
-                            }
-                        }
-
-                        if item.sell_in < 6 {
-                            if item.quality < 50 {
-                                item.quality = item.quality + 1;
-                            }
-                        }
-                    }
-                }
+                item.quality = clamp_quality(item.quality - 1);
             }
 
-            if item.name != "Sulfuras, Hand of Ragnaros" {
-                item.sell_in = item.sell_in - 1;
-            }
+            item.sell_in = item.sell_in - 1;
 
             if item.sell_in < 0 {
-                if item.name != "Aged Brie" {
-                    if item.name != "Backstage passes to a TAFKAL80ETC concert" {
-                        if item.quality > 0 {
-                            if item.name != "Sulfuras, Hand of Ragnaros" {
-                                item.quality = item.quality - 1;
-                            }
-                        }
-                    } else {
-                        item.quality = item.quality - item.quality;
-                    }
+                if item.name == AGED_BRIE {
+                    item.quality = clamp_quality(item.quality + 1);
+                } else if item.name == BACKSTAGE_PASSES {
+                    item.quality = clamp_quality(item.quality - item.quality);
+                } else if item.name.starts_with(CONJURED_PREFIX) {
+                    item.quality = clamp_quality(item.quality - 2);
                 } else {
-                    if item.quality < 50 {
-                        item.quality = item.quality + 1;
-                    }
+                    item.quality = clamp_quality(item.quality - 1);
                 }
             }
         }
     }
 }
 
+/*
+    clamp_quality keeps quality from exceeding min/max
+ */
+fn clamp_quality(i: i32) -> i32 {
+    match i {
+        i if i > MAX_QUALITY => MAX_QUALITY,
+        i if i < MIN_QUALITY => MIN_QUALITY,
+        _ => i
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{GildedRose, Item};
-    
+
     macro_rules! update_quality_test {
         ($name:ident, $item_name:expr, $input_quality:expr, $input_sell_in:expr, $expected_quality:expr, $expected_sell_in:expr) => {
             #[test]
@@ -111,6 +118,10 @@ mod tests {
     update_quality_test!(aged_brie_should_increase_quality_twice_after_sell_in, "Aged Brie", 10, 0, 12, -1);
     update_quality_test!(aged_brie_should_not_exceed_quality_of_50, "Aged Brie", 50, 10, 50, 9);
     update_quality_test!(aged_brie_should_not_exceed_quality_of_50_after_sell_in, "Aged Brie", 49, 0, 50, -1);
+
+    update_quality_test!(sulfuras_should_not_change_sellin_or_quality, "Sulfuras, Hand of Ragnaros", 30, 20, 30, 20);
+    update_quality_test!(sulfuras_should_not_change_sellin_or_quality_even_exceeding_max_quality, "Sulfuras, Hand of Ragnaros", 80, 30, 80, 30);
+    update_quality_test!(sulfuras_should_not_change_sellin_or_quality_even_exceeding_min_quality, "Sulfuras, Hand of Ragnaros", -20, -10, -20, -10);
 
     update_quality_test!(concert_tickets_should_increase_in_quality_when_greater_than_10_days_out_15, "Backstage passes to a TAFKAL80ETC concert", 10, 15, 11, 14);
     update_quality_test!(concert_tickets_should_increase_in_quality_when_greater_than_10_days_out_10, "Backstage passes to a TAFKAL80ETC concert", 10, 11, 11, 10);
