@@ -1,58 +1,69 @@
 package main
 
+import "strings"
+
+const (
+	AgedBrie        = "Aged Brie"
+	BackstagePasses = "Backstage passes to a TAFKAL80ETC concert"
+	Sulfuras        = "Sulfuras, Hand of Ragnaros"
+	ConjuredPrefix  = "Conjured"
+	MaxQuality      = 50
+	MinQuality      = 0
+)
+
 type Item struct {
 	name            string
 	sellIn, quality int
 }
 
+func clamp(i int) int {
+	if i < MinQuality {
+		return MinQuality
+	}
+	if i > MaxQuality {
+		return MaxQuality
+	}
+	return i
+}
+
 func UpdateQuality(items []*Item) {
-	for i := 0; i < len(items); i++ {
+	for _, item := range items {
 
-		if items[i].name != "Aged Brie" && items[i].name != "Backstage passes to a TAFKAL80ETC concert" {
-			if items[i].quality > 0 {
-				if items[i].name != "Sulfuras, Hand of Ragnaros" {
-					items[i].quality = items[i].quality - 1
-				}
-			}
-		} else {
-			if items[i].quality < 50 {
-				items[i].quality = items[i].quality + 1
-				if items[i].name == "Backstage passes to a TAFKAL80ETC concert" {
-					if items[i].sellIn < 11 {
-						if items[i].quality < 50 {
-							items[i].quality = items[i].quality + 1
-						}
-					}
-					if items[i].sellIn < 6 {
-						if items[i].quality < 50 {
-							items[i].quality = items[i].quality + 1
-						}
-					}
-				}
-			}
+		if item.name == Sulfuras {
+			continue
 		}
 
-		if items[i].name != "Sulfuras, Hand of Ragnaros" {
-			items[i].sellIn = items[i].sellIn - 1
+		switch {
+		case item.name == AgedBrie:
+			item.quality = clamp(item.quality + 1)
+		case item.name == BackstagePasses:
+			item.quality = clamp(item.quality + 1)
+
+			if item.sellIn < 11 {
+				item.quality = clamp(item.quality + 1)
+			}
+			if item.sellIn < 6 {
+				item.quality = clamp(item.quality + 1)
+			}
+		case strings.HasPrefix(item.name, ConjuredPrefix):
+			item.quality = clamp(item.quality - 2)
+		default:
+			item.quality = clamp(item.quality - 1)
 		}
 
-		if items[i].sellIn < 0 {
-			if items[i].name != "Aged Brie" {
-				if items[i].name != "Backstage passes to a TAFKAL80ETC concert" {
-					if items[i].quality > 0 {
-						if items[i].name != "Sulfuras, Hand of Ragnaros" {
-							items[i].quality = items[i].quality - 1
-						}
-					}
-				} else {
-					items[i].quality = items[i].quality - items[i].quality
-				}
-			} else {
-				if items[i].quality < 50 {
-					items[i].quality = items[i].quality + 1
-				}
+		item.sellIn = item.sellIn - 1
+
+		if item.sellIn < 0 {
+			switch {
+			case item.name == AgedBrie:
+				item.quality = clamp(item.quality + 1)
+			case item.name == BackstagePasses:
+				item.quality = clamp(item.quality - item.quality)
+			case strings.HasPrefix(item.name, ConjuredPrefix):
+				item.quality = clamp(item.quality - 2)
+			default:
+				item.quality = clamp(item.quality - 1)
 			}
 		}
 	}
-
 }
